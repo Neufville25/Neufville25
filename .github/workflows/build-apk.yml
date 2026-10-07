@@ -1,0 +1,79 @@
+name: Build Teacher Hub Liberia PRO APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Android package with PWABuilder
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build
+          cat > build/request.json <<'JSON'
+          {
+            "additionalTrustedOrigins": [],
+            "appVersion": "1.0.0.0",
+            "appVersionCode": 1,
+            "backgroundColor": "#ffffff",
+            "display": "standalone",
+            "enableNotifications": false,
+            "enableSiteSettingsShortcut": true,
+            "fallbackType": "customtabs",
+            "features": {
+              "locationDelegation": { "enabled": false },
+              "playBilling": { "enabled": false }
+            },
+            "host": "https://teacher-hub-liberia-pro-lapify.v2.appdeploy.ai",
+            "iconUrl": "https://teacher-hub-liberia-pro-lapify.v2.appdeploy.ai/favicon.png",
+            "includeSourceCode": false,
+            "isChromeOSOnly": false,
+            "launcherName": "Teacher Hub Liberia PRO",
+            "maskableIconUrl": null,
+            "monochromeIconUrl": null,
+            "name": "Teacher Hub Liberia PRO",
+            "navigationColor": "#ffffff",
+            "navigationColorDark": "#ffffff",
+            "navigationDividerColor": "#ffffff",
+            "navigationDividerColorDark": "#ffffff",
+            "packageId": "com.neufville25.teacherhubliberia",
+            "shareTarget": null,
+            "shortcuts": [],
+            "signing": null,
+            "signingMode": "new",
+            "splashScreenFadeOutDuration": 300,
+            "startUrl": "/",
+            "themeColor": "#ffffff",
+            "themeColorDark": "#ffffff",
+            "webManifestUrl": "https://teacher-hub-liberia-pro-lapify.v2.appdeploy.ai/manifest.json"
+          }
+          JSON
+          curl --fail --show-error --location \
+            -H "Content-Type: application/json" \
+            --data @build/request.json \
+            "https://pwabuilder-cloudapk.azurewebsites.net/generateAppPackage" \
+            -o build/teacher-hub-package.zip
+          unzip -l build/teacher-hub-package.zip
+          unzip -q build/teacher-hub-package.zip -d build/package
+          APK="$(find build/package -type f -name '*.apk' | head -n 1)"
+          test -n "$APK"
+          cp "$APK" build/Teacher_Hub_Liberia_PRO.apk
+
+      - name: Publish APK as a GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="android-v1.0.${{ github.run_number }}"
+          gh release create "$TAG" build/Teacher_Hub_Liberia_PRO.apk \
+            --repo "${{ github.repository }}" \
+            --title "Teacher Hub Liberia PRO Android v1.0.${{ github.run_number }}" \
+            --notes "Installable Android APK for Teacher Hub Liberia PRO. Built automatically from the public PWA."
